@@ -1,4 +1,797 @@
-# Ground truth for dvwa. Schema: ground_truth/README.md. Header only, not yet populated.
+# Ground truth for dvwa. Schema: ground_truth/README.md.
+# Labelled 2026-09-20 by reading each level file against help/help.php; line numbers are for the pinned sha.
 target: dvwa
 sha: b496a5d3de6b967410155e1b7d3e51e9d035eb22
-vulns: []
+vulns:
+  - id: api-low
+    category: authz
+    source: vulnerabilities/api/help/help.php
+    locations:
+      - path: vulnerabilities/api/src/User.php
+        lines: [38, 47]
+      - path: vulnerabilities/api/public/index.php
+        lines: [41, 48]
+    notes: >-
+      Unauthenticated API version pivot: the router accepts any /v<N> prefix and User::toArray()
+      case 1 serialises the sha256 password hash, so GET /vulnerabilities/api/v1/user/ leaks every
+      credential. source/low.php is only the JavaScript that calls v2; the flaw is in src/.
+      impossible.php is a prose page about OAuth 2.0 and contains no equivalent endpoint.
+  - id: api-medium
+    category: authz
+    source: vulnerabilities/api/help/help.php
+    locations:
+      - path: vulnerabilities/api/src/UserController.php
+        lines: [54, 60]
+      - path: vulnerabilities/api/src/UserController.php
+        lines: [221, 226]
+    notes: >-
+      Mass assignment / privilege escalation: validateUpdate() only requires "name" but updateUser()
+      blindly copies an attacker-supplied "level" field, so a PUT with level=0 makes the user an
+      admin. The server-side flaw is in src/, not in source/medium.php which is only the UI.
+  - id: api-high
+    category: injection
+    source: vulnerabilities/api/help/help.php
+    locations:
+      - path: vulnerabilities/api/src/HealthController.php
+        lines: [84, 88]
+    notes: >-
+      OS command injection: the /v2/health/connectivity endpoint concatenates the JSON "target"
+      field straight into exec("ping -c 4 " . $target). Deviates from the api->authz default
+      because help.php points this level at the health calls and the flaw is command injection,
+      not authorisation. No escapeshellarg/allowlist anywhere; source/high.php is only prose.
+  - id: authbypass-low
+    category: authz
+    source: vulnerabilities/authbypass/help/help.php
+    locations:
+      - path: vulnerabilities/authbypass/source/low.php
+        lines: [1, 11]
+      - path: vulnerabilities/authbypass/get_user_data.php
+        lines: [10, 13]
+      - path: vulnerabilities/authbypass/change_user_details.php
+        lines: [11, 14]
+    notes: >-
+      Missing authorisation rather than a bad line, so source/low.php is given as a block range -
+      the whole file is a comment and performs no role check, and both AJAX endpoints only gate
+      on high/impossible. The only "protection" is that the menu entry is hidden for non-admins
+      in dvwa/includes/dvwaPage.inc.php:311-313, i.e. security by obscurity.
+      impossible.php mitigates with an explicit dvwaCurrentUser() != "admin" check plus 403.
+  - id: authbypass-medium
+    category: authz
+    source: vulnerabilities/authbypass/help/help.php
+    locations:
+      - path: vulnerabilities/authbypass/get_user_data.php
+        lines: [10, 13]
+      - path: vulnerabilities/authbypass/change_user_details.php
+        lines: [11, 14]
+    notes: >-
+      source/medium.php does gate the HTML page on admin, but the two AJAX endpoints it calls do
+      not: get_user_data.php only restricts high/impossible and change_user_details.php only
+      restricts impossible, so a non-admin can read and write every user directly.
+  - id: authbypass-high
+    category: authz
+    source: vulnerabilities/authbypass/help/help.php
+    locations:
+      - path: vulnerabilities/authbypass/change_user_details.php
+        lines: [11, 14]
+      - path: vulnerabilities/authbypass/change_user_details.php
+        lines: [47, 48]
+    notes: >-
+      get_user_data.php is now locked down for high, but change_user_details.php still only blocks
+      the impossible level, so any authenticated user can UPDATE any row. Line 47 additionally
+      concatenates $data->first_name/surname/id into the UPDATE, a secondary SQL injection.
+      impossible.php and the endpoint's impossible branch require dvwaCurrentUser() == "admin".
+  - id: bac-low
+    category: authz
+    source: vulnerabilities/bac/help/help.php
+    locations:
+      - path: vulnerabilities/bac/source/low.php
+        lines: [30, 33]
+      - path: vulnerabilities/bac/source/low.php
+        lines: [77, 81]
+    notes: >-
+      IDOR: the access decision compares the requested user_id against $_COOKIE['user_id'], which
+      the client fully controls, so editing the cookie grants any profile. Lines 77-81 also splice
+      the X-Forwarded-For header into the bac_log INSERT (second-order SQL injection).
+      impossible.php compares against a server-derived $current_user_id from a prepared statement.
+  - id: bac-medium
+    category: authz
+    source: vulnerabilities/bac/source/medium.php
+    locations:
+      - path: vulnerabilities/bac/source/medium.php
+        lines: [26, 29]
+      - path: vulnerabilities/bac/source/medium.php
+        lines: [21, 21]
+    notes: >-
+      The "authorisation" is a hardcoded shared secret compared with `$_GET['token'] == 'user_token'`
+      and it is even disclosed in an HTML comment on line 46; it never ties the token to the caller.
+      $id also reaches the queries as a quoted string, so the numeric-only preg_match at line 14 is
+      the only thing holding back injection. impossible.php uses prepared statements plus an
+      identity check against the session user.
+  - id: bac-high
+    category: authz
+    source: vulnerabilities/bac/help/help.php
+    locations:
+      - path: vulnerabilities/bac/source/high.php
+        lines: [40, 43]
+      - path: vulnerabilities/bac/source/high.php
+        lines: [106, 109]
+    notes: >-
+      Queries are parameterised here, but the access decision trusts $_SESSION['user_id'], which is
+      seeded unconditionally at lines 107-108 and is therefore vulnerable to session fixation /
+      pre-set session values. impossible.php re-derives the identity from dvwaCurrentUser() on every
+      request and adds rate limiting.
+  - id: brute-low
+    category: auth
+    source: vulnerabilities/brute/help/help.php
+    locations:
+      - path: vulnerabilities/brute/source/low.php
+        lines: [3, 9]
+      - path: vulnerabilities/brute/source/low.php
+        lines: [12, 13]
+    notes: >-
+      No rate limiting, lockout, CSRF token or delay on the login handler, and credentials arrive by
+      GET; passwords are hashed with bare md5 and the username is concatenated into the query
+      (line 12), so the login is also SQL-injectable. impossible.php adds a prepared statement,
+      a failed_login counter with a 15-minute lockout and checkToken().
+  - id: brute-medium
+    category: auth
+    source: vulnerabilities/brute/help/help.php
+    locations:
+      - path: vulnerabilities/brute/source/medium.php
+        lines: [3, 11]
+      - path: vulnerabilities/brute/source/medium.php
+        lines: [28, 28]
+    notes: >-
+      Only mitigation over low is a fixed `sleep(2)` on failure (line 28), which just slows a
+      serial attacker and is defeated by parallel requests; there is still no lockout, no token and
+      no per-account counter. Password hashing is still md5.
+  - id: brute-high
+    category: auth
+    source: vulnerabilities/brute/source/high.php
+    locations:
+      - path: vulnerabilities/brute/source/high.php
+        lines: [3, 5]
+      - path: vulnerabilities/brute/source/high.php
+        lines: [33, 33]
+    notes: >-
+      Adds checkToken() and a random `sleep(rand(0,3))`, but the anti-CSRF token is served in the
+      login page itself so a scripted attacker simply re-reads it each round; there is still no
+      account lockout and md5 password hashing. impossible.php is the level that adds the lockout.
+  - id: captcha-low
+    category: auth
+    source: vulnerabilities/captcha/help/help.php
+    locations:
+      - path: vulnerabilities/captcha/source/low.php
+        lines: [45, 51]
+      - path: vulnerabilities/captcha/source/low.php
+        lines: [60, 61]
+    notes: >-
+      The step-2 handler is reached whenever `step=2` is posted and never re-verifies the CAPTCHA,
+      so posting step=2 directly changes the password with no CAPTCHA at all. This is a
+      missing-check flaw, so the range covers the step-2 handler head rather than one bad line.
+      impossible.php calls recaptcha_check_answer() on the single request and also demands the
+      current password via a prepared statement.
+  - id: captcha-medium
+    category: auth
+    source: vulnerabilities/captcha/source/medium.php
+    locations:
+      - path: vulnerabilities/captcha/source/medium.php
+        lines: [54, 59]
+      - path: vulnerabilities/captcha/source/medium.php
+        lines: [67, 69]
+    notes: >-
+      The step-2 gate is `if( !$_POST['passed_captcha'] )` - a client-supplied boolean, so adding
+      passed_captcha=true to the request bypasses the CAPTCHA entirely. Trusting a hidden form
+      field as proof of a server-side check.
+  - id: captcha-high
+    category: auth
+    source: vulnerabilities/captcha/source/high.php
+    locations:
+      - path: vulnerabilities/captcha/source/high.php
+        lines: [17, 23]
+      - path: vulnerabilities/captcha/source/high.php
+        lines: [30, 31]
+    notes: >-
+      The CAPTCHA result is OR'd with a hardcoded backdoor: g-recaptcha-response == 'hidd3n_valu3'
+      together with a spoofable User-Agent of 'reCAPTCHA' passes the check. Both halves are entirely
+      attacker-controlled. impossible.php has no such escape hatch.
+  - id: cryptography-low
+    category: crypto
+    source: vulnerabilities/cryptography/help/help.php
+    locations:
+      - path: vulnerabilities/cryptography/source/low.php
+        lines: [16, 16]
+      - path: vulnerabilities/cryptography/source/low.php
+        lines: [30, 36]
+    notes: >-
+      Repeating-key XOR with a hardcoded key ("wachtwoord") presented as encryption; it is encoding,
+      not encryption, and is trivially recovered by known-plaintext. Line 41 then compares the
+      submitted password to a hardcoded literal. impossible.php replaces the whole scheme with
+      AES-256-GCM (authenticated encryption) in token_library_impossible.php.
+  - id: cryptography-medium
+    category: crypto
+    source: vulnerabilities/cryptography/source/medium.php
+    locations:
+      - path: vulnerabilities/cryptography/source/medium.php
+        lines: [3, 3]
+      - path: vulnerabilities/cryptography/source/medium.php
+        lines: [25, 32]
+    notes: >-
+      AES-128-ECB with a hardcoded key (line 10): identical plaintext blocks map to identical
+      ciphertext blocks, so the session tokens can be cut-and-pasted block-wise to forge a valid
+      admin token, and there is no MAC over the ciphertext. The authorisation decision on line 32
+      trusts the decrypted JSON. impossible.php uses aes-256-gcm, which authenticates the ciphertext.
+  - id: cryptography-high
+    category: crypto
+    source: vulnerabilities/cryptography/source/token_library_high.php
+    locations:
+      - path: vulnerabilities/cryptography/source/token_library_high.php
+        lines: [92, 93]
+      - path: vulnerabilities/cryptography/source/token_library_high.php
+        lines: [101, 105]
+    notes: >-
+      AES-128-CBC with a hardcoded key and an unauthenticated, attacker-supplied IV: check_token()
+      takes the IV out of the submitted JSON and decrypts with it, so flipping bits in the IV
+      rewrites the first plaintext block ("userid:2" -> "userid:1") and yields the admin account.
+      source/high.php itself has no server-side sink; the logic lives in token_library_high.php,
+      reached via check_token_high.php. token_library_impossible.php switches to aes-256-gcm and
+      verifies the GCM tag before trusting the plaintext.
+  - id: csp-low
+    category: config
+    source: vulnerabilities/csp/help/help.php
+    locations:
+      - path: vulnerabilities/csp/source/low.php
+        lines: [3, 5]
+      - path: vulnerabilities/csp/source/low.php
+        lines: [13, 17]
+    notes: >-
+      Two-part config flaw: the script-src allowlist includes public user-content CDNs
+      (unpkg.com, cdn.jsdelivr.net, pastebin.com ...) where anyone can host arbitrary JS, and
+      line 15 drops $_POST['include'] straight into a <script src> with no validation.
+      impossible.php narrows the policy to script-src 'self' and serves a fixed callback.
+  - id: csp-medium
+    category: config
+    source: vulnerabilities/csp/source/medium.php
+    locations:
+      - path: vulnerabilities/csp/source/medium.php
+        lines: [3, 3]
+      - path: vulnerabilities/csp/source/medium.php
+        lines: [14, 18]
+    notes: >-
+      The policy pairs a nonce with 'unsafe-inline', which defeats the nonce for browsers that
+      honour unsafe-inline, and the nonce itself is a hardcoded constant baked into the source, so
+      an attacker can simply include nonce="TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=". Line 16 reflects
+      $_POST['include'] unescaped into the page body.
+  - id: csp-high
+    category: config
+    source: vulnerabilities/csp/help/help.php
+    locations:
+      - path: vulnerabilities/csp/source/jsonp.php
+        lines: [4, 12]
+      - path: vulnerabilities/csp/source/high.php
+        lines: [8, 12]
+    notes: >-
+      The header is a tight script-src 'self', but the same-origin JSONP endpoint echoes the
+      attacker-chosen ?callback= value into its JavaScript response (line 12), so arbitrary code is
+      served from 'self' and the policy is bypassed. jsonp_impossible.php fixes this by hardcoding
+      the callback name ("solveSum") and taking no input at all.
+  - id: csrf-low
+    category: other
+    source: vulnerabilities/csrf/help/help.php
+    locations:
+      - path: vulnerabilities/csrf/source/low.php
+        lines: [3, 6]
+      - path: vulnerabilities/csrf/source/low.php
+        lines: [16, 17]
+    notes: >-
+      A state-changing password reset performed on a plain GET with no anti-CSRF token, no
+      re-authentication and no current-password check, so any cross-origin image or link changes the
+      victim's password. impossible.php adds checkToken() and verifies password_current with a
+      prepared statement before updating.
+  - id: csrf-medium
+    category: other
+    source: vulnerabilities/csrf/source/medium.php
+    locations:
+      - path: vulnerabilities/csrf/source/medium.php
+        lines: [5, 5]
+      - path: vulnerabilities/csrf/source/medium.php
+        lines: [18, 19]
+    notes: >-
+      The only defence is `stripos($_SERVER['HTTP_REFERER'], $_SERVER['SERVER_NAME'])`, a substring
+      match on an attacker-influenceable header - hosting the exploit at
+      http://evil.com/127.0.0.1/csrf.html satisfies it. Referer is also absent or stripped in many
+      contexts, which the code never handles.
+  - id: csrf-high
+    category: other
+    source: vulnerabilities/csrf/source/high.php
+    locations:
+      - path: vulnerabilities/csrf/source/high.php
+        lines: [31, 39]
+      - path: vulnerabilities/csrf/source/high.php
+        lines: [43, 44]
+    notes: >-
+      checkToken() is present, but the handler still changes the password without ever verifying the
+      current one, so the token is the single point of failure and any XSS elsewhere in DVWA (or the
+      JSON branch at lines 7-18, which accepts the token from a request header) completes the
+      attack. Block range because the weakness is the missing re-authentication across the handler.
+      impossible.php adds the password_current check.
+  - id: exec-low
+    category: injection
+    source: vulnerabilities/exec/help/help.php
+    locations:
+      - path: vulnerabilities/exec/source/low.php
+        lines: [5, 5]
+      - path: vulnerabilities/exec/source/low.php
+        lines: [10, 14]
+    notes: >-
+      $_REQUEST['ip'] is concatenated into shell_exec() with no filtering at all, so ";id" or "|id"
+      runs arbitrary commands. impossible.php splits the input on "." and requires four is_numeric()
+      octets before rebuilding the target.
+  - id: exec-medium
+    category: injection
+    source: vulnerabilities/exec/source/medium.php
+    locations:
+      - path: vulnerabilities/exec/source/medium.php
+        lines: [5, 14]
+      - path: vulnerabilities/exec/source/medium.php
+        lines: [19, 23]
+    notes: >-
+      Blacklist str_replace() strips only "&&" and ";", so a single "|" or "&" still chains
+      commands; blacklisting is the wrong control and there is no escapeshellarg() or allowlist.
+  - id: exec-high
+    category: injection
+    source: vulnerabilities/exec/source/high.php
+    locations:
+      - path: vulnerabilities/exec/source/high.php
+        lines: [5, 21]
+      - path: vulnerabilities/exec/source/high.php
+        lines: [26, 30]
+    notes: >-
+      A longer blacklist, but note line 12 strips "| " (pipe followed by a space) and not a bare
+      "|", so "127.0.0.1|id" still injects. Still shell_exec() on concatenated input rather than
+      escapeshellarg() or the numeric-octet allowlist used by impossible.php.
+  - id: fi-low
+    category: path
+    source: vulnerabilities/fi/help/help.php
+    locations:
+      - path: vulnerabilities/fi/source/low.php
+        lines: [4, 4]
+      - path: vulnerabilities/fi/index.php
+        lines: [35, 36]
+    notes: >-
+      $_GET['page'] flows unchecked into include() in index.php:36, giving local and (with
+      allow_url_include) remote file inclusion. The source file only assigns the variable; the sink
+      is the module's index.php. impossible.php replaces this with an in_array() allowlist of four
+      filenames.
+  - id: fi-medium
+    category: path
+    source: vulnerabilities/fi/source/medium.php
+    locations:
+      - path: vulnerabilities/fi/source/medium.php
+        lines: [4, 8]
+      - path: vulnerabilities/fi/index.php
+        lines: [35, 36]
+    notes: >-
+      Single-pass str_replace() blacklist on "http://", "https://", "../" and "..\\" - because the
+      replacement is not applied recursively, "....//" collapses to "../" and traversal works again;
+      absolute paths such as /etc/passwd are not blocked at all.
+  - id: fi-high
+    category: path
+    source: vulnerabilities/fi/source/high.php
+    locations:
+      - path: vulnerabilities/fi/source/high.php
+        lines: [4, 11]
+      - path: vulnerabilities/fi/index.php
+        lines: [35, 36]
+    notes: >-
+      fnmatch("file*", $file) is a prefix glob, not a path allowlist, so "file:///etc/passwd" (and
+      any path beginning with "file") passes and is included. impossible.php uses an exact
+      in_array() match against a fixed list instead.
+  - id: javascript-low
+    category: other
+    source: vulnerabilities/javascript/help/help.php
+    locations:
+      - path: vulnerabilities/javascript/source/low.php
+        lines: [16, 21]
+      - path: vulnerabilities/javascript/index.php
+        lines: [43, 43]
+    notes: >-
+      Client-side security control: the token is computed in the browser as md5(rot13(phrase)) and
+      the server merely compares against the same constant, so the check can be recomputed or
+      replayed by the attacker. DVWA ships no impossible level here (source/impossible.php is an
+      empty file) because client-side input can never be trusted.
+  - id: javascript-medium
+    category: other
+    source: vulnerabilities/javascript/source/medium.js
+    locations:
+      - path: vulnerabilities/javascript/source/medium.js
+        lines: [1, 1]
+      - path: vulnerabilities/javascript/index.php
+        lines: [50, 50]
+    notes: >-
+      Same client-side trust flaw, now behind minified JS in an external file (medium.js is a single
+      minified line): the token is strrev("XX" + phrase + "XX"), recoverable by reading the script.
+      source/medium.php is a three-line loader with no server-side logic.
+  - id: javascript-high
+    category: other
+    source: vulnerabilities/javascript/source/high.js
+    locations:
+      - path: vulnerabilities/javascript/source/high.js
+        lines: [1, 1]
+      - path: vulnerabilities/javascript/index.php
+        lines: [57, 57]
+    notes: >-
+      Obfuscation as the control: high.js is a single obfuscated line (high_unobfuscated.js is
+      shipped alongside) computing sha256(sha256("XX" + strrev(phrase)) + "ZZ"). Obfuscation is not
+      a security boundary. source/high.php is a three-line loader.
+  - id: open_redirect-low
+    category: other
+    source: vulnerabilities/open_redirect/help/help.php
+    locations:
+      - path: vulnerabilities/open_redirect/source/low.php
+        lines: [3, 5]
+    notes: >-
+      $_GET['redirect'] goes straight into a Location header with no validation, so the page
+      redirects to any attacker URL. impossible.php maps a numeric id through a switch to a fixed
+      set of targets, never echoing user input into the header.
+  - id: open_redirect-medium
+    category: other
+    source: vulnerabilities/open_redirect/source/medium.php
+    locations:
+      - path: vulnerabilities/open_redirect/source/medium.php
+        lines: [4, 4]
+      - path: vulnerabilities/open_redirect/source/medium.php
+        lines: [11, 12]
+    notes: >-
+      The preg_match only rejects literal "http://" and "https://", so the scheme-relative form
+      "//evil.com" (and case or encoding variants) still reaches the Location header. Denylisting
+      schemes instead of allowlisting targets.
+  - id: open_redirect-high
+    category: other
+    source: vulnerabilities/open_redirect/source/high.php
+    locations:
+      - path: vulnerabilities/open_redirect/source/high.php
+        lines: [4, 6]
+    notes: >-
+      strpos($_GET['redirect'], "info.php") only requires the substring to appear anywhere, so
+      "https://evil.com/info.php" or "https://evil.com/?x=info.php" passes and is redirected to.
+      impossible.php resolves an integer id to a hardcoded target instead.
+  - id: sqli-low
+    category: injection
+    source: vulnerabilities/sqli/help/help.php
+    locations:
+      - path: vulnerabilities/sqli/source/low.php
+        lines: [5, 5]
+      - path: vulnerabilities/sqli/source/low.php
+        lines: [10, 11]
+      - path: vulnerabilities/sqli/source/low.php
+        lines: [31, 34]
+    notes: >-
+      $_REQUEST['id'] is interpolated into a single-quoted WHERE clause with no escaping, on both
+      the MySQL (line 10) and SQLite (line 31) paths. impossible.php uses PDO prepare/bindParam with
+      PDO::PARAM_INT behind an is_numeric()/intval() check plus checkToken().
+  - id: sqli-medium
+    category: injection
+    source: vulnerabilities/sqli/source/medium.php
+    locations:
+      - path: vulnerabilities/sqli/source/medium.php
+        lines: [5, 7]
+      - path: vulnerabilities/sqli/source/medium.php
+        lines: [11, 12]
+      - path: vulnerabilities/sqli/source/medium.php
+        lines: [27, 27]
+    notes: >-
+      Odd case worth noting - mysqli_real_escape_string() is applied at line 7, but the value is
+      then interpolated into an UNQUOTED numeric context (user_id = $id), so quote escaping buys
+      nothing and "1 OR 1=1" injects freely. The SQLite path never sees the escaping at all. The
+      form uses a dropdown, which is client-side only.
+  - id: sqli-high
+    category: injection
+    source: vulnerabilities/sqli/source/high.php
+    locations:
+      - path: vulnerabilities/sqli/source/high.php
+        lines: [5, 5]
+      - path: vulnerabilities/sqli/source/high.php
+        lines: [10, 11]
+      - path: vulnerabilities/sqli/source/high.php
+        lines: [28, 28]
+    notes: >-
+      Identical string interpolation to low; the only change is that the payload arrives via
+      $_SESSION['id'] set from a separate pop-up page, which frustrates naive scanners but is still
+      fully attacker-controlled. LIMIT 1 is trivially defeated with a comment.
+  - id: sqli_blind-low
+    category: injection
+    source: vulnerabilities/sqli_blind/help/help.php
+    locations:
+      - path: vulnerabilities/sqli_blind/source/low.php
+        lines: [5, 5]
+      - path: vulnerabilities/sqli_blind/source/low.php
+        lines: [11, 13]
+      - path: vulnerabilities/sqli_blind/source/low.php
+        lines: [32, 34]
+    notes: >-
+      Same quoted interpolation as sqli-low; errors are suppressed so the oracle is the
+      exists/missing message, making this boolean-blind rather than unexploitable.
+      impossible.php uses PDO prepare/bindParam plus is_numeric() and an anti-CSRF token.
+  - id: sqli_blind-medium
+    category: injection
+    source: vulnerabilities/sqli_blind/source/medium.php
+    locations:
+      - path: vulnerabilities/sqli_blind/source/medium.php
+        lines: [5, 10]
+      - path: vulnerabilities/sqli_blind/source/medium.php
+        lines: [13, 15]
+      - path: vulnerabilities/sqli_blind/source/medium.php
+        lines: [34, 34]
+    notes: >-
+      mysqli_real_escape_string() at line 10 again protects only against quotes while the value is
+      spliced into an unquoted numeric comparison, so numeric injection is unaffected; the SQLite
+      branch at line 34 uses the escaped-or-not $id regardless.
+  - id: sqli_blind-high
+    category: injection
+    source: vulnerabilities/sqli_blind/source/high.php
+    locations:
+      - path: vulnerabilities/sqli_blind/source/high.php
+        lines: [5, 5]
+      - path: vulnerabilities/sqli_blind/source/high.php
+        lines: [11, 13]
+      - path: vulnerabilities/sqli_blind/source/high.php
+        lines: [33, 33]
+    notes: >-
+      The injected value is read from $_COOKIE['id'] rather than a parameter and a random sleep is
+      added on the miss branch to poison timing attacks, but the query is still built by string
+      interpolation and boolean-blind extraction works unchanged.
+  - id: upload-low
+    category: path
+    source: vulnerabilities/upload/help/help.php
+    locations:
+      - path: vulnerabilities/upload/source/low.php
+        lines: [5, 6]
+      - path: vulnerabilities/upload/source/low.php
+        lines: [9, 9]
+    notes: >-
+      Unrestricted file upload into the web root: the client-supplied filename is used as the
+      destination and no type, extension or content check is performed, so a .php webshell is
+      uploaded and then executed. impossible.php enforces an extension and MIME allowlist, calls
+      getimagesize(), re-encodes the image with GD to strip payloads and renames it to
+      bin2hex(random_bytes(16)).
+  - id: upload-medium
+    category: path
+    source: vulnerabilities/upload/source/medium.php
+    locations:
+      - path: vulnerabilities/upload/source/medium.php
+        lines: [6, 6]
+      - path: vulnerabilities/upload/source/medium.php
+        lines: [10, 18]
+    notes: >-
+      Validates $_FILES['uploaded']['type'], which is the Content-Type the client sends and is
+      trivially forged; the filename and extension are still taken verbatim from the request, so
+      shell.php with Content-Type image/jpeg lands in hackable/uploads/ and executes.
+  - id: upload-high
+    category: path
+    source: vulnerabilities/upload/source/high.php
+    locations:
+      - path: vulnerabilities/upload/source/high.php
+        lines: [6, 6]
+      - path: vulnerabilities/upload/source/high.php
+        lines: [15, 20]
+    notes: >-
+      Checks the extension against jpg/jpeg/png and calls getimagesize(), but getimagesize() only
+      inspects the header, so a valid image prefixed to PHP code (or a double extension such as
+      shell.php.jpg combined with the fi module) still yields execution. The file keeps its
+      user-supplied name and is never re-encoded, unlike impossible.php.
+  - id: weak_id-low
+    category: auth
+    source: vulnerabilities/weak_id/help/help.php
+    locations:
+      - path: vulnerabilities/weak_id/source/low.php
+        lines: [6, 11]
+    notes: >-
+      The dvwaSession cookie is a simple incrementing integer, so any user's session id can be
+      guessed by counting. The cookie is also set with no expiry, path, Secure or HttpOnly flags.
+      impossible.php uses bin2hex(random_bytes(20)) with Secure and HttpOnly set.
+  - id: weak_id-medium
+    category: auth
+    source: vulnerabilities/weak_id/source/medium.php
+    locations:
+      - path: vulnerabilities/weak_id/source/medium.php
+        lines: [6, 7]
+    notes: >-
+      The session value is time(), a low-entropy, publicly observable value, so an attacker who
+      knows roughly when a victim logged in can brute force a few thousand candidates. Still no
+      cookie flags.
+  - id: weak_id-high
+    category: auth
+    source: vulnerabilities/weak_id/source/high.php
+    locations:
+      - path: vulnerabilities/weak_id/source/high.php
+        lines: [6, 11]
+    notes: >-
+      md5() of the same incrementing counter: hashing a predictable input does not add entropy, so
+      the id space is enumerable by hashing 1, 2, 3 ... Note the extra cookie attributes at line 11
+      set secure and httponly to false. impossible.php seeds from a CSPRNG and sets both to true.
+  - id: xss_d-low
+    category: xss
+    source: vulnerabilities/xss_d/help/help.php
+    locations:
+      - path: vulnerabilities/xss_d/index.php
+        lines: [51, 53]
+      - path: vulnerabilities/xss_d/source/low.php
+        lines: [1, 5]
+    notes: >-
+      DOM XSS: the page slices the "default=" value out of document.location.href and passes it to
+      document.write() with decodeURI(), so the payload never reaches the server. source/low.php is
+      a three-word comment ("No protections, anything goes") and has no server-side sink, so the
+      real location is the inline script in the module's index.php. The impossible level's
+      mitigation is to drop the decodeURI() call (index.php:36-38).
+  - id: xss_d-medium
+    category: xss
+    source: vulnerabilities/xss_d/source/medium.php
+    locations:
+      - path: vulnerabilities/xss_d/source/medium.php
+        lines: [4, 11]
+      - path: vulnerabilities/xss_d/index.php
+        lines: [51, 53]
+    notes: >-
+      Server-side stripos() for "<script" only, and it inspects $_GET, which cannot see anything
+      after a "#" fragment; payloads such as "</option></select><img src=x onerror=alert(1)>" or a
+      fragment-delivered payload sail past to the same document.write() sink.
+  - id: xss_d-high
+    category: xss
+    source: vulnerabilities/xss_d/source/high.php
+    locations:
+      - path: vulnerabilities/xss_d/source/high.php
+        lines: [4, 17]
+      - path: vulnerabilities/xss_d/index.php
+        lines: [51, 53]
+    notes: >-
+      A server-side switch allowlists four languages, but the JavaScript still reads the raw
+      location.href, so a payload placed after a "#" fragment is never sent to PHP and reaches
+      document.write() unfiltered. Block range because the flaw is the allowlist's blind spot
+      rather than one bad statement.
+  - id: xss_r-low
+    category: xss
+    source: vulnerabilities/xss_r/help/help.php
+    locations:
+      - path: vulnerabilities/xss_r/source/low.php
+        lines: [6, 8]
+      - path: vulnerabilities/xss_r/source/low.php
+        lines: [3, 3]
+    notes: >-
+      $_GET['name'] is concatenated into the HTML response with no encoding, and line 3 explicitly
+      sends X-XSS-Protection: 0 to disable the browser auditor. impossible.php applies
+      htmlspecialchars() and drops the X-XSS-Protection header.
+  - id: xss_r-medium
+    category: xss
+    source: vulnerabilities/xss_r/source/medium.php
+    locations:
+      - path: vulnerabilities/xss_r/source/medium.php
+        lines: [8, 11]
+    notes: >-
+      Single, case-sensitive str_replace() of the literal "<script>", so "<SCRIPT>",
+      "<scr<script>ipt>" (the removal reassembles the tag) or any non-script vector such as
+      "<img src=x onerror=...>" is unaffected. Denylisting instead of output encoding.
+  - id: xss_r-high
+    category: xss
+    source: vulnerabilities/xss_r/source/high.php
+    locations:
+      - path: vulnerabilities/xss_r/source/high.php
+        lines: [8, 11]
+    notes: >-
+      A case-insensitive regex kills any "<s...c...r...i...p...t" sequence, but it targets only the
+      script tag; "<img src=x onerror=alert(1)>", "<svg onload=...>" and friends still reflect
+      unencoded. htmlspecialchars() in impossible.php is the correct fix.
+  - id: xss_s-low
+    category: xss
+    source: vulnerabilities/xss_s/help/help.php
+    locations:
+      - path: vulnerabilities/xss_s/source/low.php
+        lines: [5, 13]
+      - path: vulnerabilities/xss_s/source/low.php
+        lines: [16, 17]
+    notes: >-
+      Both name and message are only SQL-escaped before being stored; no HTML encoding is applied on
+      the way in and the guestbook is later rendered unencoded (dvwa/includes/dvwaPage.inc.php:626),
+      so the stored payload fires for every visitor. impossible.php adds htmlspecialchars() to both
+      fields and switches the INSERT to a PDO prepared statement.
+  - id: xss_s-medium
+    category: xss
+    source: vulnerabilities/xss_s/source/medium.php
+    locations:
+      - path: vulnerabilities/xss_s/source/medium.php
+        lines: [14, 15]
+      - path: vulnerabilities/xss_s/source/medium.php
+        lines: [18, 19]
+    notes: >-
+      The message field is properly encoded (line 11) but the name field gets only a case-sensitive
+      str_replace() of "<script>", so "<SCRIPT>" or an event-handler payload is stored raw and
+      rendered as HTML. The maxlength on the form is client-side only.
+  - id: xss_s-high
+    category: xss
+    source: vulnerabilities/xss_s/source/high.php
+    locations:
+      - path: vulnerabilities/xss_s/source/high.php
+        lines: [14, 15]
+      - path: vulnerabilities/xss_s/source/high.php
+        lines: [18, 19]
+    notes: >-
+      Message is htmlspecialchars()-encoded, but the name field is filtered by the same
+      script-tag-only regex used in xss_r-high, so "<img src=x onerror=alert(1)>" is stored and
+      later echoed unencoded into the guestbook.
+controls:
+  - id: api-impossible
+    path: vulnerabilities/api/source/impossible.php
+    lines: [1, 22]
+    notes: "prose-only page describing OAuth 2.0 token handling; no request-handling code and no sink"
+  - id: authbypass-impossible
+    path: vulnerabilities/authbypass/source/impossible.php
+    lines: [1, 13]
+    notes: "explicit dvwaCurrentUser() != 'admin' check with a 403 and exit, and the same check is enforced in both AJAX endpoints"
+  - id: bac-impossible
+    path: vulnerabilities/bac/source/impossible.php
+    lines: [1, 292]
+    notes: "prepared statements throughout, identity taken from dvwaCurrentUser() rather than a cookie, htmlspecialchars() on output, plus rate limiting and audit logging"
+  - id: brute-impossible
+    path: vulnerabilities/brute/source/impossible.php
+    lines: [1, 102]
+    notes: "PDO prepared statements, anti-CSRF checkToken(), a three-strike failed_login counter with a 15-minute lockout and a randomised failure delay"
+  - id: captcha-impossible
+    path: vulnerabilities/captcha/source/impossible.php
+    lines: [1, 67]
+    notes: "single-step flow that calls recaptcha_check_answer() on the request that changes the password, plus checkToken() and a current-password check via a prepared statement"
+  - id: cryptography-impossible
+    path: vulnerabilities/cryptography/source/impossible.php
+    lines: [1, 70]
+    notes: "delegates to token_library_impossible.php, which uses aes-256-gcm authenticated encryption and verifies the GCM tag before trusting the token"
+  - id: csp-impossible
+    path: vulnerabilities/csp/source/impossible.php
+    lines: [1, 23]
+    notes: "script-src 'self' with no inline or third-party sources, and the JSONP endpoint hardcodes its callback name instead of reflecting one"
+  - id: csrf-impossible
+    path: vulnerabilities/csrf/source/impossible.php
+    lines: [1, 50]
+    notes: "checkToken() against the session token plus mandatory verification of password_current through a PDO prepared statement"
+  - id: exec-impossible
+    path: vulnerabilities/exec/source/impossible.php
+    lines: [1, 41]
+    notes: "allowlist validation - explode on '.' and require four is_numeric() octets - before the target is rebuilt and passed to shell_exec(), plus checkToken()"
+  - id: fi-impossible
+    path: vulnerabilities/fi/source/impossible.php
+    lines: [1, 20]
+    notes: "in_array() allowlist of four exact filenames; anything else prints an error and exits before the include"
+  - id: javascript-impossible
+    path: vulnerabilities/javascript/source/impossible.php
+    lines: [1, 1]
+    notes: "file is empty (0 bytes) - DVWA deliberately ships no impossible level here because client-supplied values can never be trusted; index.php renders an explanatory message instead"
+  - id: open_redirect-impossible
+    path: vulnerabilities/open_redirect/source/impossible.php
+    lines: [1, 29]
+    notes: "is_numeric() plus a switch that maps an integer id to one of three hardcoded targets; no user input ever reaches the Location header"
+  - id: sqli-impossible
+    path: vulnerabilities/sqli/source/impossible.php
+    lines: [1, 65]
+    notes: "is_numeric()/intval() validation then PDO prepare/bindParam (PDO::PARAM_INT) or SQLite3 prepare/bindValue, plus checkToken()"
+  - id: sqli_blind-impossible
+    path: vulnerabilities/sqli_blind/source/impossible.php
+    lines: [1, 65]
+    notes: "is_numeric()/intval() validation then prepared statements with bound integer parameters, plus checkToken()"
+  - id: upload-impossible
+    path: vulnerabilities/upload/source/impossible.php
+    lines: [1, 65]
+    notes: "extension and MIME allowlist plus getimagesize(), re-encodes the image through GD to strip payloads, and renames it to bin2hex(random_bytes(16))"
+  - id: weak_id-impossible
+    path: vulnerabilities/weak_id/source/impossible.php
+    lines: [1, 9]
+    notes: "session value from bin2hex(random_bytes(20)) - a CSPRNG - with an expiry, a scoped path and the Secure and HttpOnly flags set"
+  - id: xss_d-impossible
+    path: vulnerabilities/xss_d/source/impossible.php
+    lines: [1, 5]
+    notes: "no server-side code by design; the mitigation is that index.php omits the decodeURI() call for this level so the value is inserted literally"
+  - id: xss_r-impossible
+    path: vulnerabilities/xss_r/source/impossible.php
+    lines: [1, 18]
+    notes: "htmlspecialchars() on the reflected value, checkToken() on the request, and the X-XSS-Protection: 0 header is not sent"
+  - id: xss_s-impossible
+    path: vulnerabilities/xss_s/source/impossible.php
+    lines: [1, 31]
+    notes: "htmlspecialchars() on both name and message before storage and a PDO prepared statement for the INSERT, plus checkToken()"

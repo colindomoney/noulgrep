@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from . import normalise, scan, summarise, targets
+from . import classify, ground_truth, normalise, report, scan, summarise, targets
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,6 +35,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("summarise", parents=[common], help="write and print results/summary.md")
 
+    c = sub.add_parser(
+        "classify", parents=[common], help="phase 2: Jev over findings.jsonl -> triaged-*.jsonl"
+    )
+    c.add_argument("--limit", type=int, metavar="N", help="only the first N findings")
+    c.add_argument("--concurrency", type=int, default=classify.DEFAULT_CONCURRENCY)
+    c.add_argument(
+        "--redact-path", action="store_true", help="hide the file path from Jev (DVWA eval)"
+    )
+    c.add_argument("--force", action="store_true", help="discard previous output and re-run")
+
+    sub.add_parser("report", help="phase 2: policy buckets, ranking and evaluation -> report.md")
+
+    g = sub.add_parser("ground-truth", help="build ground_truth/<target>.yaml from an answer key")
+    g.add_argument("name", choices=sorted(ground_truth.BUILDERS))
+
     a = sub.add_parser("all", parents=[common], help="targets, scan, normalise, summarise")
     a.add_argument("--ruleset", action="append", metavar="NAME")
     a.add_argument("--force", action="store_true")
@@ -47,6 +62,9 @@ STEPS = {
     "scan": [scan.run],
     "normalise": [normalise.run],
     "summarise": [summarise.run],
+    "classify": [classify.run],
+    "ground-truth": [ground_truth.run],
+    "report": [report.run],
     "all": [targets.run, scan.run, normalise.run, summarise.run],
 }
 

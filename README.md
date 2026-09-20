@@ -15,6 +15,21 @@ uv run noulgrep all          # the four steps in order
 
 `--target NAME` restricts any step to one target (repeatable); `scan` also takes `--ruleset NAME` and `--force` (re-run even if raw output exists).
 
+## Running phase 2 (Jev)
+
+```bash
+uv run noulgrep ground-truth juice-shop   # ground_truth/juice-shop.yaml from the vuln-line markers
+uv run noulgrep classify                  # Jev over findings.jsonl -> results/triaged-full.jsonl
+uv run noulgrep classify --redact-path --target dvwa --target juice-shop   # -> triaged-redacted.jsonl
+uv run noulgrep report                    # policy buckets, ranking, evaluation -> results/report.md
+```
+
+`classify` is resumable (re-running skips finding_ids already in the output; `--force` starts over)
+and pins the model and question set in `noulgrep/questions.py`. `--redact-path` hides the file path
+from Jev, which matters for DVWA where `source/impossible.php` in the path is the answer. The
+whole corpus (731 findings) classifies in about 15 seconds for roughly five cents.
+`ground_truth/dvwa.yaml` is labelled by hand (see its header); the others are still headers.
+
 ## Hello, Jev
 
 `hello_jev.py` is a standalone tour of the model phase 2 will use: five silly examples (one per
