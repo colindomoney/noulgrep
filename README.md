@@ -15,6 +15,21 @@ uv run noulgrep all          # the four steps in order
 
 `--target NAME` restricts any step to one target (repeatable); `scan` also takes `--ruleset NAME` and `--force` (re-run even if raw output exists).
 
+## Hello, Jev
+
+`hello_jev.py` is a standalone tour of the model phase 2 will use: five silly examples (one per
+primitive, then several questions in one call, then an eight-question fan-out) followed by timing
+analysis (questions vs latency, sequential vs concurrent, server time vs network). It needs
+`TYPESAFE_API_KEY` in `.env` (copy `.env.example`) and costs well under a cent per run.
+
+```bash
+uv run hello_jev.py              # ~45 calls
+uv run hello_jev.py --repeats 3 --skip-async
+```
+
+It also writes `docs/jev-response-shape.json`, the raw payload that pins down the SDK's response
+attribute names; `docs/jev-verified.md` records what that run confirmed about the handoff doc.
+
 Notes:
 
 - `targets/` and `results/` are gitignored. Reproducibility comes from `targets.toml` (URLs and SHAs) and `results/manifest.json` (Semgrep version, ruleset list, per-run status, timing and errors).

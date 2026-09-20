@@ -1,0 +1,84 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "by_cat": {
+      "type": "noul",
+      "noul": 0.23
+    },
+    "by_dog": {
+      "type": "noul",
+      "noul": 0.05
+    },
+    "mentions_vase": {
+      "type": "noul",
+      "noul": 0.99
+    },
+    "threatens": {
+      "type": "noul",
+      "noul": 0.88
+    },
+    "demand": {
+      "type": "choice",
+      "choice": "food",
+      "confidence": 1.0,
+      "probabilities": {
+        "other": 0.0,
+        "money": 0.0,
+        "revenge": 0.0,
+        "food": 1.0,
+        "attention": 0.0
+      }
+    },
+    "menace": {
+      "type": "score",
+      "score": 1.57,
+      "confidence": 0.56,
+      "legend": {
+        "0": "Friendly.",
+        "1": "Passive-aggressive.",
+        "2": "Openly threatening.",
+        "3": "Bond villain."
+      },
+      "probabilities": {
+        "0": 0.0,
+        "1": 0.43,
+        "2": 0.5700000000000001,
+        "3": 0.0
+      }
+    },
+    "urgency": {
+      "type": "score",
+      "score": 1.28,
+      "confidence": 0.55,
+      "legend": {
+        "0": "Whenever.",
+        "1": "Today.",
+        "2": "Right now, and it is already late."
+      },
+      "probabilities": {
+        "0": 0.01,
+        "1": 0.7,
+        "2": 0.29
+      }
+    },
+    "remorse": {
+      "type": "score",
+      "score": 0.01,
+      "confidence": 0.99,
+      "legend": {
+        "0": "None whatsoever.",
+        "1": "A little.",
+        "2": "Genuinely sorry."
+      },
+      "probabilities": {
+        "0": 0.99,
+        "1": 0.01,
+        "2": 0.0
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 689,
+    "output_tokens": 168
+  }
+}
