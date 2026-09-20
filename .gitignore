@@ -1,0 +1,8 @@
+targets/
+results/
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+.claude/settings.local.json
+.env

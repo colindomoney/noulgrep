@@ -1,0 +1,129 @@
+# noulgrep target manifest.
+# `sha` is written by `noulgrep targets` on first clone and pins the checkout from then on; the
+# cloner never moves to a newer HEAD. `rulesets` are the per-target language packs; the packs common
+# to every target live in noulgrep/scan.py. `exclude` is passed to semgrep --exclude in addition to
+# the global list. `notes` records what was confirmed by reading the tree (and what was not).
+
+[[targets]]
+name = "juice-shop"
+url = "https://github.com/juice-shop/juice-shop"
+sha = "1618a611b173b4bf114028e6e02549950606e29d"
+branch = "master"
+languages = [
+    "typescript",
+    "javascript",
+]
+rulesets = [
+    "p/javascript",
+    "p/typescript",
+    "p/nodejs",
+    "p/express",
+    "p/expressjs",
+]
+exclude = [
+    "frontend",
+]
+notes = """
+Answer key 1: data/static/challenges.yml, 116 challenges; fields name, category, description, difficulty, hints, mitigationUrl, key (optional tags, disabledEnv, tutorial). `category` is the vulnerability class: 16 values incl. Sensitive Data Exposure 17, Injection 14, Improper Input Validation 12, Broken Access Control 12, XSS 9, Vulnerable Components 9, Broken Authentication 9, Security Misconfiguration 5, Cryptographic Issues 5, Insecure Deserialization 3, XXE 2, Unvalidated Redirects 2.
+Answer key 2 (line-precise): data/static/codefixes/ holds the 35 coding challenges as <key>.info.yml plus snippet variants <key>_N.<ext> (ts/sol/tf/yml) with exactly one <key>_N_correct.<ext>. Non-correct variants are vulnerable by design; the _correct one is the fix. These are sample files, not runtime code: tagged is_fixture and target_meta.codefix {challenge, variant, correct}.
+Frontend: frontend/ is an Angular 22 client with no server-side code; excluded from scanning (DOM-XSS challenges live there, so client-side XSS is out of scope for this target). Server code: routes/ (61 files), lib/ (16), models/ (23), data/, app.ts, server.ts.
+Tests: test/{api,cypress,server,smoke}, TypeScript; test/files holds upload fixtures (zip/pdf/exe). No .semgrepignore shipped. Also 17 .sol and 11 .tf files (challenge material)."""
+
+[[targets]]
+name = "webgoat"
+url = "https://github.com/WebGoat/WebGoat"
+sha = "872d6149d4ef29e4929c2f4eda279f7fbedc52e8"
+branch = "main"
+languages = [
+    "java",
+]
+rulesets = [
+    "p/java",
+    "p/spring",
+]
+exclude = []
+notes = """
+Lessons: src/main/java/org/owasp/webgoat/lessons/<lesson>/, 32 lessons (authbypass, bypassrestrictions, challenges, chromedevtools, cia, clientsidefiltering, cryptography, csrf, deserialization, hijacksession, htmltampering, httpbasics, httpproxies, idor, insecurelogin, jwt, lessontemplate, logging, missingac, openredirect, passwordreset, pathtraversal, securepasswords, securitymisconfiguration, spoofcookie, sqlinjection, ssrf, vulnerablecomponents, webgoatintroduction, webwolfintroduction, xss, xxe).
+Vulnerable and fixed code sit side by side. Some lessons split introduction/ vs mitigation/ sub-packages (sqlinjection, xss); others mark fixes by class name (*Mitigation*, OpenRedirectSecureController) or use numbered Assignment classes (challenges/challenge7/Assignment7.java). Filename/sub-package is a usable but not universal signal: idor and csrf have no such markers. target_meta records lesson, kind (java|resource), sub (first dir under the lesson) and mitigation (bool from /mitigation/, *Mitigation*, *SecureController*, *Fixed*).
+Lesson resources at src/main/resources/lessons/<lesson>/: 274 adoc, 128 properties, 93 js (incl. DOM XSS lesson scripts, worth scanning), 70 html, 14 sql. Tests: src/test/java (91 files). Maven build. No .semgrepignore shipped.
+NOT CONFIRMED: whether the introduction/mitigation split holds for all 32 lessons (two sampled)."""
+
+[[targets]]
+name = "crapi"
+url = "https://github.com/OWASP/crAPI"
+sha = "b5fc307f3e5f875809b095b771108ef342a33724"
+branch = "develop"
+languages = [
+    "java",
+    "python",
+    "go",
+    "javascript",
+]
+rulesets = [
+    "p/java",
+    "p/spring",
+    "p/python",
+    "p/golang",
+    "p/javascript",
+]
+exclude = []
+notes = """
+Polyglot microservices under services/: chatbot = Python (Quart async framework + langchain/openai), community = Go (module crapi.proj/goservice; has vendor/ with gorilla/mux, excluded as vendored), gateway-service = Go (module api.mypremiumdealership.com/v1), identity = Java (Gradle, not Maven), web = React 18 + TypeScript frontend served by nginx (no server-side code), workshop = Python/Django 4.1 + DRF + djongo, mailhog = Dockerfile only (no source). Language packs used: java, python, golang, javascript (+ p/spring, which does not exist in the registry). p/django and p/flask would also apply (Django workshop, Quart chatbot) but are outside the brief's pack list.
+Secrets: per-service .env files are committed with hardcoded credentials (services/identity/.env DB_PASSWORD, JWT_SECRET, keystore password; services/chatbot/.env; services/workshop/.env SECRET_KEY; services/web/public/.env) and RSA JWK private keys at services/identity/jwks.json and deploy/{docker,k8s,helm}/keys/jwks.json. Expect p/secrets hits there; target_meta.service / target_meta.area=deploy distinguishes them.
+Tests: services/identity/src/test/java, Django tests.py per app under services/workshop/crapi/ (matched by filename), services/chatbot/src/chatbot/tests/, services/community/api/controllers/home_controller_test.go. Default branch is develop. No .semgrepignore shipped.
+NOT CONFIRMED: how services/web/public/.env is consumed at runtime (looks like a build-time template)."""
+
+[[targets]]
+name = "nodegoat"
+url = "https://github.com/OWASP/NodeGoat"
+sha = "c5cb68a7084e4ae7dcc60e6a98768720a81841e8"
+branch = "master"
+languages = [
+    "javascript",
+]
+rulesets = [
+    "p/javascript",
+    "p/nodejs",
+    "p/express",
+    "p/expressjs",
+]
+exclude = []
+notes = """
+Layout: server.js at root; app/routes/ (10 route files), app/data/ (7 *-dao.js), app/views/ (HTML, incl. app/views/tutorial/a1..a10.html = the OWASP Top 10 tutorial, an answer key per category), app/assets/vendor/ = jquery, bootstrap, chart, html5shiv (flagged is_vendored via a target-specific prefix; app/assets/js is project code).
+Fixed code exists only as commented-out blocks next to the live vulnerable code in the same file, each preceded by a `// Fix for A<n> ...` marker, e.g. app/routes/contributions.js:31 live eval(req.body.preTax) with the fix commented at 36-40; app/data/allocations-dao.js:62-70 (NoSQL injection); app/data/profile-dao.js:68-75 (plaintext SSN/DOB); app/routes/index.js:57-60 (missing isAdmin). No *fixed* files anywhere. Rule: the vulnerable line is live JS, the fix is inert (/* */ or //) and follows the marker, so Semgrep only ever sees the vulnerable variant and the marker line is a natural anchor for line-level ground truth.
+Tests: test/e2e (Cypress, fixtures under test/e2e/fixtures), test/security/profile-test.js (Selenium + ZAP). Gruntfile.js references test/unit/*.js but no such directory exists. No .semgrepignore shipped."""
+
+[[targets]]
+name = "vampi"
+url = "https://github.com/erev0s/VAmPI"
+sha = "f16052dce83f05847133ec98f01c5193a41de7d8"
+branch = "master"
+languages = [
+    "python",
+]
+rulesets = [
+    "p/python",
+    "p/flask",
+]
+exclude = []
+notes = """
+Runtime toggle confirmed: app.py:9 `vuln = int(os.getenv('vulnerable', 1))`, imported into the views with `from app import vuln`. Both code paths live in the SAME functions as `if vuln: / else:` branches (api_views/users.py:60 mass assignment, :101 user/password enumeration, :143 ReDoS, :186 unauthorised password change; api_views/books.py:50 BOLA). Semgrep therefore sees the vulnerable and the secure branch in one file and the path cannot tell them apart; only the surrounding lines (context field) or a line range in ground truth can.
+Modules: api_views/main.py (/createdb, /), users.py (/users/v1 list, register, login, _debug, /users/v1/<username> GET/DELETE, email and password PUT), books.py (/books/v1 GET/POST, /books/v1/<title>), json_schemas.py (schemas only). 11 .py files in total.
+Answer key: README.md:41-49 lists the intentional vulnerabilities (SQLi, unauthorised password change, BOLA, mass assignment, excessive data exposure via /users/v1/_debug, user and password enumeration, ReDoS, no rate limiting, JWT bypass via weak signing key) and README.md:24-38 is the endpoint table; openapi_specs/openapi3.yml describes the API. No tests. No .semgrepignore shipped upstream (the one in the checkout is written by noulgrep)."""
+
+[[targets]]
+name = "dvwa"
+url = "https://github.com/digininja/DVWA"
+sha = "b496a5d3de6b967410155e1b7d3e51e9d035eb22"
+branch = "master"
+languages = [
+    "php",
+]
+rulesets = [
+    "p/php",
+]
+exclude = []
+notes = """
+Pattern vulnerabilities/<module>/source/{low,medium,high,impossible}.php confirmed for all 19 modules: api, authbypass, bac, brute, captcha, cryptography, csp, csrf, exec, fi, javascript, open_redirect, sqli, sqli_blind, upload, weak_id, xss_d, xss_r, xss_s. Extra files inside source/ carry the level as a filename token where one applies (cryptography: check_token_high.php, token_library_impossible.php plus *_attack.php helpers; csp: high.js, impossible.js, jsonp.php, jsonp_impossible.php; javascript: high.js, high_unobfuscated.js, medium.js; bac: view_source.php; open_redirect: info.php), so target_meta.security_level is derived from that token for any file under source/. The api module is much larger than the rest (src/ with 8 PHP classes, public/index.php, openapi.yml, composer.json; the swagger-php dependency is never installed, no vendor/ in tree).
+Module-level files outside source/ (fi/file1-4.php, fi/include.php, sqli/session-input.php, csrf/test_credentials.php, authbypass/*.php, bac/log_viewer.php) get target_meta.module only. vulnerabilities/<module>/help/help.php exists for all 19 modules = per-module answer key. Shared code: root *.php (login, setup, security, phpinfo...), dvwa/includes/dvwaPage.inc.php, dvwa/includes/DBMS/{MySQL,PGSQL}.php, hackable/flags/fi.php, config/config.inc.php.dist.
+Vendored: dvwa/includes/Parsedown.php and external/recaptcha/recaptchalib.php (is_vendored via target-specific prefixes). tests/test_url.py is a link checker, not a security test. No .semgrepignore shipped."""

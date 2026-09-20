@@ -1,0 +1,30 @@
+[project]
+name = "noulgrep"
+version = "0.1.0"
+description = "Semgrep runner over deliberately vulnerable repos, producing Jev-ready findings (phase 1)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "semgrep==1.177.0",
+    "tomli-w",
+]
+
+[project.scripts]
+noulgrep = "noulgrep.cli:main"
+
+[dependency-groups]
+dev = ["ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["noulgrep"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -1,0 +1,4 @@
+# Ground truth for crapi. Schema: ground_truth/README.md. Header only, not yet populated.
+target: crapi
+sha: b5fc307f3e5f875809b095b771108ef342a33724
+vulns: []

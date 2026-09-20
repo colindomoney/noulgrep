@@ -1,0 +1,4 @@
+# Ground truth for juice-shop. Schema: ground_truth/README.md. Header only, not yet populated.
+target: juice-shop
+sha: 1618a611b173b4bf114028e6e02549950606e29d
+vulns: []

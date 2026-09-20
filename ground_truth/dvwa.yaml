@@ -1,0 +1,4 @@
+# Ground truth for dvwa. Schema: ground_truth/README.md. Header only, not yet populated.
+target: dvwa
+sha: b496a5d3de6b967410155e1b7d3e51e9d035eb22
+vulns: []

@@ -1,0 +1,4 @@
+# Ground truth for nodegoat. Schema: ground_truth/README.md. Header only, not yet populated.
+target: nodegoat
+sha: c5cb68a7084e4ae7dcc60e6a98768720a81841e8
+vulns: []

@@ -1,0 +1,4 @@
+# Ground truth for vampi. Schema: ground_truth/README.md. Header only, not yet populated.
+target: vampi
+sha: f16052dce83f05847133ec98f01c5193a41de7d8
+vulns: []

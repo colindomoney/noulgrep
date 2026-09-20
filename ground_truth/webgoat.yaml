@@ -1,0 +1,4 @@
+# Ground truth for webgoat. Schema: ground_truth/README.md. Header only, not yet populated.
+target: webgoat
+sha: 872d6149d4ef29e4929c2f4eda279f7fbedc52e8
+vulns: []
